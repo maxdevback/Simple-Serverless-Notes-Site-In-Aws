@@ -36,8 +36,6 @@ provider:
   environment:
     NOTES_TABLE: ${self:custom.tableName}
     AUTH_TABLE: ${self:custom.tableNameAuth}
-    # COGNITO_POLL_ID: us-east-1:efbc3055-0d43-4d54-91dc-f5696f4b66d7
-    # IS_OFFLINE: true
 
 functions:
   add-note:
@@ -92,7 +90,7 @@ functions:
             headers: ${self:custom.allowedHeaders}
   auth:
     handler: lambdas/auth.handler
-    description: DELETE /note
+    description: Auth user
     events:
       - http:
           path: /auth
