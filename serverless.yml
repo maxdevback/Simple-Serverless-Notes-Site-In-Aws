@@ -1,0 +1,135 @@
+service: aws-notes
+frameworkVersion: "3"
+
+custom:
+  tableName: "notes-table-${sls:stage}-v3"
+  tableNameAuth: notes-table-auth-${sls:stage}-v3
+  allowedHeaders:
+    - Accept
+    - Content-Type
+    - Content-Length
+    - Authorization
+    - X-Amz-Date
+    - X-Api-Key
+    - X-Amz-Security-Token
+    - X-Amz-User-Agent
+    - app_user_id
+    - app_user_name
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [NotesTable, Arn]
+            - Fn::GetAtt: [AuthTable, Arn]
+  environment:
+    NOTES_TABLE: ${self:custom.tableName}
+    AUTH_TABLE: ${self:custom.tableNameAuth}
+    # COGNITO_POLL_ID: us-east-1:efbc3055-0d43-4d54-91dc-f5696f4b66d7
+    # IS_OFFLINE: true
+
+functions:
+  add-note:
+    handler: lambdas/postNote.handler
+    description: POST /note
+    events:
+      - http:
+          path: note
+          method: post
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+  update-note:
+    handler: lambdas/updateNote.handler
+    description: PATCH /note
+    events:
+      - http:
+          path: note
+          method: patch
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+  get-notes:
+    handler: lambdas/getNotes.handler
+    description: GET /notes
+    events:
+      - http:
+          path: notes
+          method: get
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+  get-note:
+    handler: lambdas/getNote.handler
+    description: GET /note/n/{note_id}
+    events:
+      - http:
+          path: note/n/{note_id}
+          method: get
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+  delete-note:
+    handler: lambdas/deleteNote.handler
+    description: DELETE /note
+    events:
+      - http:
+          path: note/t/{timestamp}
+          method: delete
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+  auth:
+    handler: lambdas/auth.handler
+    description: DELETE /note
+    events:
+      - http:
+          path: /auth
+          method: post
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+
+resources:
+  Resources:
+    NotesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.tableName}
+    AuthTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: username
+            AttributeType: S
+        KeySchema:
+          - AttributeName: username
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.tableNameAuth}
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
